@@ -1,0 +1,74 @@
+# Telecom Customer Churn Prediction
+
+Predicts whether a telecom customer will leave (churn) from their account, service and billing details, and serves the model in a Streamlit app.
+
+Only 26.5% of customers churn, so the project focuses on **catching churners (recall)** rather than raw accuracy, which a model can inflate by predicting "no churn" for everyone.
+
+## Results
+
+Final model: **AdaBoost with class weighting** (churners weighted 2.8×), with features scaled by a `StandardScaler` fitted on the training split only.
+
+| Metric (20% stratified test set, 1,407 customers) | Value |
+| --- | --- |
+| Churn recall | 0.81 (catches 81% of customers who leave) |
+| Churn F1 | 0.62 |
+| Accuracy | 0.73 |
+
+### Experiments (`ML_Model_Building.ipynb`)
+
+Churn-class scores from the notebook's saved outputs, each on a random 20% hold-out split:
+
+| Approach | Recall | F1 | Accuracy |
+| --- | --- | --- | --- |
+| Decision Tree, no cleaning | 0.55 | 0.55 | 0.77 |
+| XGBoost, no imbalance handling | 0.53 | 0.57 | 0.78 |
+| XGBoost + SMOTE | 0.60 | 0.59 | 0.77 |
+| XGBoost + ADASYN | 0.60 | 0.60 | 0.78 |
+| XGBoost + SMOTEENN | 0.84 | 0.63 | 0.73 |
+| Random Forest + SMOTEENN | 0.85 | 0.63 | 0.73 |
+| XGBoost, `scale_pos_weight` | 0.72 | 0.63 | 0.77 |
+| **AdaBoost, sample weights (chosen)** | **0.83** | **0.65** | **0.76** |
+
+The notebook also tunes XGBoost with RandomizedSearchCV and Optuna (best cross-validated F1 0.62–0.63) and tries balanced Random Forest, CatBoost and LightGBM. Without handling the imbalance, models miss almost half of churners; weighting or resampling raises recall to over 0.80 at a small cost in accuracy.
+
+## Features
+
+- **Cleaning:** `TotalCharges` converted to numbers; 11 customers with blank values (tenure 0) removed.
+- **Tenure bins:** tenure grouped into 12-month bins (1–12, 13–24, … 61–72).
+- **Encoding:** categorical columns one-hot encoded.
+
+## Project Structure
+
+```
+├── churn.py               # shared cleaning + encoding (used by training and the app)
+├── train.py               # trains the final model, saves churn_model.joblib + metrics.json
+├── streamlit_app.py       # web app for predictions
+├── test_churn.py          # pytest tests for preprocessing
+├── ML_Model_Building.ipynb  # experiments: imbalance handling, model comparison, tuning
+├── Customer-Churn.csv     # IBM Telco Customer Churn data (7,043 customers)
+├── churn_model.joblib     # trained pipeline (scaler + model) and app metadata
+└── metrics.json           # test-set metrics from train.py
+```
+
+## How to Run
+
+```bash
+pip install -r requirements.txt
+
+python train.py                  # retrain and save the model (a few seconds)
+pytest -v                        # run the tests
+streamlit run streamlit_app.py   # open http://localhost:8501
+```
+
+If loading `churn_model.joblib` gives a scikit-learn version error, run `python train.py` to rebuild it with your installed version.
+
+## Fixes Made to the Original App
+
+- **Categorical inputs were ignored.** The app one-hot encoded a single input row with `drop_first=True`. With one row, each column has only one category, so every dropdown (contract, internet service, payment method and so on) was encoded as 0 and had no effect on the prediction. Encoding now matches training exactly, and a test checks it.
+- **Scaler mismatch.** The app refitted a new `StandardScaler` on the full dataset at startup instead of using the one the model was trained with. The scaler and model are now saved together in one pipeline.
+- **Reproducibility.** Training lives in `train.py` with a fixed random seed and a stratified split, so the reported metrics can be reproduced.
+- Removed an unrelated, unfinished image-classifier `app.py` and deployment notes for a different project, and fixed a typo (`import pandas as pd0`) and Colab-only file path in the notebook.
+
+## Tech Stack
+
+Python, pandas, scikit-learn, XGBoost, LightGBM, CatBoost, imbalanced-learn, Optuna, Streamlit, pytest

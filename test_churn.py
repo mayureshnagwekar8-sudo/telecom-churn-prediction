@@ -33,3 +33,16 @@ def test_single_row_matches_training_encoding():
     pd.testing.assert_series_equal(
         X_row.iloc[0], X_train.iloc[0], check_names=False
     )
+
+
+def test_torch_model_shapes_and_loss():
+    import torch
+    from torch import nn
+    from torch_train import ChurnMLP
+
+    model = ChurnMLP(n_features=34)
+    x = torch.randn(64, 34)
+    logits = model(x)
+    assert logits.shape == (64, 1)
+    loss = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([2.76]))(logits, torch.ones(64, 1))
+    assert torch.isfinite(loss)

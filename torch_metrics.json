@@ -1,0 +1,11 @@
+{
+  "model": "PyTorch MLP 34-64-1, BCEWithLogitsLoss(pos_weight)",
+  "test_rows": 1407,
+  "churn_recall": 0.754,
+  "churn_precision": 0.496,
+  "churn_f1": 0.598,
+  "accuracy": 0.731,
+  "roc_auc": 0.829,
+  "pr_auc": 0.606,
+  "best_epoch": 3
+}
